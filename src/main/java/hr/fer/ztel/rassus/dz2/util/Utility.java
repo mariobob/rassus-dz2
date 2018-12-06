@@ -1,6 +1,11 @@
 package hr.fer.ztel.rassus.dz2.util;
 
+import java.util.List;
+
 public class Utility {
+
+    /** Keyword used between two nodes to confirm a receipt of measurement. */
+    public static final String RECEIVE_CONFIRMATION = "RECEIVE_CONFIRMATION";
 
     /** Disable instantiation. */
     private Utility() {}
@@ -23,6 +28,37 @@ public class Utility {
             return n2;
         } else {
             return null;
+        }
+    }
+
+    /**
+     * Compares two ordered lists by comparing elements one by one. The first element
+     * that is found different in these two lists is compared and its result is returned.
+     * If these two lists are identical (same order and same number of elements), 0 is returned.
+     * If one list has less elements than the other, but is a subset of the beginning of the
+     * other list, the shorter list is considered 'lower'.
+     *
+     * @param list1 an ordered list
+     * @param list2 an ordered list
+     * @param <T> type parameter
+     * @return result of comparison
+     */
+    public static <T extends Comparable<T>> int compareLists(List<T> list1, List<T> list2) {
+        int n = Math.min(list1.size(), list2.size());
+
+        for (int i = 0; i < n; i++) {
+            int difference = list1.get(i).compareTo(list2.get(i));
+            if (difference != 0) {
+                return difference;
+            }
+        }
+
+        if (list1.size() == list2.size()) {
+            return 0;  // Elements are equal
+        } else if (list1.size() < list2.size()) {
+            return -1; // list1 is shorter
+        } else {
+            return 1;  // list1 is longer
         }
     }
 

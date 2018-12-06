@@ -30,7 +30,7 @@ public class SimpleSimulatedDatagramSocket extends DatagramSocket {
         super.setSoTimeout(0);
     }
 
-    //use this constructor for the client side (timeout = 4 * averageDelay)
+    // Use this constructor for the client side (timeout = 4 * averageDelay)
     public SimpleSimulatedDatagramSocket(double lossRate, int averageDelay) throws SocketException, IllegalArgumentException {
         random = new Random();
 
