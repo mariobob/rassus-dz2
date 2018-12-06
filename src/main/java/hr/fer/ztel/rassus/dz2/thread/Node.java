@@ -52,12 +52,28 @@ public class Node {
 
     public void startNode() {
         if (started) {
+            log.info("Node {} was already started. Cannot reuse resources.", name);
             return;
         }
 
+        log.info("Starting node {}", name);
         started = true;
+
+        serverThread.setDaemon(true);
         serverThread.start();
-        executorService.schedule(new SortingJob(), SORT_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+        executorService.scheduleWithFixedDelay(new SortingJob(),
+                SORT_INTERVAL_MILLIS, SORT_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    public void shutdown() {
+        if (!started) {
+            return;
+        }
+
+        log.info("Shutting down node {}", name);
+
+        serverThread.interrupt();
+        executorService.shutdown();
     }
 
     public void recordEvent() {
@@ -80,7 +96,7 @@ public class Node {
                     .filter(Objects::nonNull)
                     .mapToInt(Integer::intValue)
                     .average()
-                    .orElse(0);
+                    .orElse(Double.NaN);
 
             // Sort measurements by timestamps and clear all global measurements
             Map<ScalarTimestamp, Measurement> scalar = new TreeMap<>(scalarTimestampMap);
