@@ -99,23 +99,21 @@ public class ServerThread extends Thread {
                 String rcvString = new String(packet.getData(), packet.getOffset(), packet.getLength());
 
                 // Create a DatagramPacket and send confirmation of receipt
+                byte[] bytes = RECEIVE_CONFIRMATION.getBytes();
                 DatagramPacket sendPacket = new DatagramPacket(
-                        RECEIVE_CONFIRMATION.getBytes(), BUFFER_SIZE,
-                        packet.getAddress(), packet.getPort()
-                );
-                log.info("Received packet. Sending confirmation...");
+                        bytes, bytes.length, packet.getAddress(), packet.getPort());
+                log.debug("Received packet. Sending confirmation...");
                 socket.send(sendPacket);
 
                 // Store measurement in memory
                 Gson gson = new Gson();
                 MeasurementPacket measurementPacket = gson.fromJson(rcvString, MeasurementPacket.class);
                 storeMeasurement(measurementPacket); // TODO Don't store if this is a duplicate package
+                log.debug("Finished processing packet from {}", packet.getSocketAddress());
             } catch (IOException e) {
                 log.error("An I/O exception occurred", e);
             } catch (Exception e) {
                 throw new RuntimeException(e);
-            } finally {
-                log.info("Finished serving {}", socket);
             }
         }
 

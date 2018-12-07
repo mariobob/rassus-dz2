@@ -69,14 +69,22 @@ public class Utility {
     public static void retry(int times, Callable<Boolean> callable) {
         for (int i = 0; i < times; i++) {
             try {
-                callable.call();
+                boolean success = callable.call();
+                if (success) break;
+                else sleep(RETRY_LOGIC_SLEEP_MILLIS);
             } catch (IOException e) {
-                try {
-                    Thread.sleep(RETRY_LOGIC_SLEEP_MILLIS);
-                } catch (InterruptedException ignore) { Thread.currentThread().interrupt(); }
+                sleep(RETRY_LOGIC_SLEEP_MILLIS);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
         }
     }
 
