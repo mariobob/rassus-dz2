@@ -19,9 +19,9 @@ import static hr.fer.ztel.rassus.dz2.util.Utility.RECEIVE_CONFIRMATION;
 
 @Log4j2
 @ToString
-@RequiredArgsConstructor
 public class ServerThread extends Thread {
 
+    /** Socket timeout, in milliseconds. */
     private static final int DEFAULT_SO_TIMEOUT = 1000;
     private static final int BUFFER_SIZE = 256;
 
@@ -34,6 +34,14 @@ public class ServerThread extends Thread {
     @Getter private final int port;
     @Getter private final double lossRate;
     @Getter private final int averageDelay;
+
+    public ServerThread(Node node, int port, double lossRate, int averageDelay) {
+        super("ServerThread");
+        this.node = node;
+        this.port = port;
+        this.lossRate = lossRate;
+        this.averageDelay = averageDelay;
+    }
 
     @Override
     public void run() {
@@ -68,8 +76,6 @@ public class ServerThread extends Thread {
         serverSocket.receive(packet);
         ClientWorker cw = new ClientWorker(serverSocket, packet);
         threadPool.submit(cw);
-
-        log.info("Accepted {}", serverSocket.getRemoteSocketAddress());
     }
 
     /**
@@ -86,6 +92,8 @@ public class ServerThread extends Thread {
 
         @Override
         public void run() {
+            log.info("Receiving packet from {}", packet.getSocketAddress());
+
             try {
                 // Receive measurement in JSON format from client
                 String rcvString = new String(packet.getData(), packet.getOffset(), packet.getLength());
@@ -95,16 +103,15 @@ public class ServerThread extends Thread {
                         RECEIVE_CONFIRMATION.getBytes(), BUFFER_SIZE,
                         packet.getAddress(), packet.getPort()
                 );
+                log.info("Received packet. Sending confirmation...");
                 socket.send(sendPacket);
-                log.info("Sent confirmation to {}", socket.getRemoteSocketAddress());
-
-                // Record node event
-                node.recordEvent(); // TODO Don't record if this is a duplicate package
 
                 // Store measurement in memory
                 Gson gson = new Gson();
                 MeasurementPacket measurementPacket = gson.fromJson(rcvString, MeasurementPacket.class);
-                storeMeasurement(measurementPacket);
+                storeMeasurement(measurementPacket); // TODO Don't store if this is a duplicate package
+            } catch (IOException e) {
+                log.error("An I/O exception occurred", e);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {

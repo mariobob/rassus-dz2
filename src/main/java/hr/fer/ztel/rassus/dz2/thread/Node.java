@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
+import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,34 +20,35 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Log4j2
-@Getter
 @ToString
 public class Node {
 
     /** Interval between two sorts of measurements, in milliseconds. */
     private static final long SORT_INTERVAL_MILLIS = 5000;
 
-    private final long startTime = System.currentTimeMillis();
+    @Getter private long startTime;
+    @Getter private boolean started = false;
 
-    private final String name;
-    private final int nodeIndex;
-    private final int totalNodes;
+    @Getter private final String name;
+    @Getter private final int nodeIndex;
+    @Getter private final int totalNodes;
 
     private final AtomicInteger eventCount = new AtomicInteger();
     private final List<Measurement> measurements = new CopyOnWriteArrayList<>();
     private final Map<ScalarTimestamp, Measurement> scalarTimestampMap = new ConcurrentHashMap<>();
     private final Map<VectorTimestamp, Measurement> vectorTimestampMap = new ConcurrentHashMap<>();
 
-    private boolean started = false;
     private final ServerThread serverThread;
+    private final ClientThread clientThread;
     private final ScheduledExecutorService executorService;
 
-    public Node(String name, int port, double lossRate, int averageDelay, int nodeIndex, int totalNodes) {
+    public Node(String name, int port, double lossRate, int averageDelay, int nodeIndex, List<SocketAddress> neighbourNodes) {
         this.name = name;
         this.nodeIndex = nodeIndex;
-        this.totalNodes = totalNodes;
+        this.totalNodes = neighbourNodes.size() + 1;
 
         this.serverThread = new ServerThread(this, port, lossRate, averageDelay);
+        this.clientThread = new ClientThread(this, lossRate, averageDelay, neighbourNodes);
         this.executorService = Executors.newSingleThreadScheduledExecutor();
     }
 
@@ -58,10 +60,12 @@ public class Node {
 
         log.info("Starting node {}", name);
         started = true;
+        startTime = System.currentTimeMillis();
 
         serverThread.setDaemon(true);
         serverThread.start();
-        executorService.scheduleWithFixedDelay(new SortingJob(),
+        clientThread.start();
+        executorService.scheduleWithFixedDelay(new SortJob(),
                 SORT_INTERVAL_MILLIS, SORT_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
     }
 
@@ -72,21 +76,27 @@ public class Node {
 
         log.info("Shutting down node {}", name);
 
+        clientThread.interrupt();
         serverThread.interrupt();
         executorService.shutdown();
     }
 
-    public void recordEvent() {
-        eventCount.incrementAndGet();
+    public int getEventCount() {
+        return eventCount.get();
     }
 
     public synchronized void storeMeasurement(Measurement measurement, ScalarTimestamp scalar, VectorTimestamp vector) {
+        recordEvent();
         measurements.add(measurement);
         scalarTimestampMap.put(scalar, measurement);
         vectorTimestampMap.put(vector, measurement);
     }
 
-    private class SortingJob implements Runnable {
+    private void recordEvent() {
+        eventCount.incrementAndGet();
+    }
+
+    private class SortJob implements Runnable {
 
         @Override
         public void run() {

@@ -1,11 +1,15 @@
 package hr.fer.ztel.rassus.dz2.util;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public class Utility {
 
     /** Keyword used between two nodes to confirm a receipt of measurement. */
     public static final String RECEIVE_CONFIRMATION = "RECEIVE_CONFIRMATION";
+    /** Sleep time for retry logic, in milliseconds. */
+    private static final long RETRY_LOGIC_SLEEP_MILLIS = 1000;
 
     /** Disable instantiation. */
     private Utility() {}
@@ -59,6 +63,20 @@ public class Utility {
             return -1; // list1 is shorter
         } else {
             return 1;  // list1 is longer
+        }
+    }
+
+    public static void retry(int times, Callable<Boolean> callable) {
+        for (int i = 0; i < times; i++) {
+            try {
+                callable.call();
+            } catch (IOException e) {
+                try {
+                    Thread.sleep(RETRY_LOGIC_SLEEP_MILLIS);
+                } catch (InterruptedException ignore) { Thread.currentThread().interrupt(); }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
