@@ -17,5 +17,6 @@ public class DecoratedEmulatedSystemClock extends EmulatedSystemClock {
     @Override
     public long currentTimeMillis() {
         return clock.currentTimeMillis() + offset + AVERAGE_DELAY_MILLIS;
+//        return ((clock.currentTimeMillis() + offset + AVERAGE_DELAY_MILLIS) - startTime) / 1000; // convert to seconds
     }
 }

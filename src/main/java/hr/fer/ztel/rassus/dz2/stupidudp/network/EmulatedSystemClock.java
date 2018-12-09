@@ -13,7 +13,7 @@ import java.util.Random;
  */
 public class EmulatedSystemClock {
     
-    private long startTime;
+    protected long startTime;
     private double jitter; // jitter per second, percentage of deviation per 1 second
 
     public EmulatedSystemClock() {

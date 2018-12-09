@@ -116,7 +116,6 @@ public class Node {
 
         measurements.add(measurement);
         scalarTimestampMap.put(lastScalarTimestamp, measurement);
-//        scalarTimestampMap.put(new ScalarTimestamp((lastScalarTimestamp.getValue() - startTime) / 1000), measurement); // convert to seconds elapsed
         vectorTimestampMap.put(lastVectorTimestamp, measurement);
     }
 
