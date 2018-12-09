@@ -79,21 +79,30 @@ public class ClientThread extends Thread {
 
         // Send to all other nodes in network
         for (SocketAddress nodeAddress : neighbourNodes) {
-            MeasurementPacket measurementPacket = new MeasurementPacket(measurement, scalar, vector);
-            executorService.submit(new SendJob(socket, nodeAddress, measurementPacket));
+            executorService.submit(new SendJob(node.getName(), socket, nodeAddress, measurement, scalar, vector));
         }
     }
 
     @RequiredArgsConstructor
     private static class SendJob implements Runnable {
 
+        /** ID of the packet being sent. This prevents duplicates over UDP. */
+        private static long packetId = 0L;
+
+        private final String nodeName;
         private final DatagramSocket socket;
         private final SocketAddress nodeAddress;
-        private final MeasurementPacket measurementPacket;
+        private final Measurement measurement;
+        private final ScalarTimestamp scalar;
+        private final VectorTimestamp vector;
 
         @Override
         public void run() {
             log.info("Sending packet to {}", nodeAddress);
+
+            MeasurementPacket measurementPacket = new MeasurementPacket(
+                    nodeName+"-"+packetId, measurement, scalar, vector);
+            packetId++;
 
             // Create a JSON object and convert to bytes
             Gson gson = new Gson();

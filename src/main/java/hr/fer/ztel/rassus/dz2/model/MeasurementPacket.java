@@ -7,6 +7,7 @@ import lombok.Value;
 @Value
 public class MeasurementPacket {
 
+    private final String id;
     private final Measurement measurement;
     private final ScalarTimestamp scalarTimestamp;
     private final VectorTimestamp vectorTimestamp;

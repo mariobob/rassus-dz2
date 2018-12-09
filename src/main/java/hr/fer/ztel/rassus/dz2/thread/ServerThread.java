@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,6 +31,9 @@ public class ServerThread extends Thread {
     private final transient ExecutorService threadPool = Executors.newFixedThreadPool(
             Runtime.getRuntime().availableProcessors() - 1
     );
+
+    /** IDs of packages already received and stored. */
+    private final Set<String> receivedIds = new HashSet<>();
 
     private final Node node;
     @Getter private final int port;
@@ -105,10 +110,16 @@ public class ServerThread extends Thread {
                 log.debug("Received packet. Sending confirmation...");
                 socket.send(sendPacket);
 
-                // Store measurement in memory
+                // Convert string to JSON and check package ID
                 Gson gson = new Gson();
                 MeasurementPacket measurementPacket = gson.fromJson(rcvString, MeasurementPacket.class);
-                storeMeasurement(measurementPacket); // TODO Don't store if this is a duplicate package
+                if (receivedIds.contains(measurementPacket.getId())) {
+                    log.info("Received packet is a duplicate: {}", measurementPacket);
+                    return;
+                }
+
+                storeMeasurement(measurementPacket);
+                receivedIds.add(measurementPacket.getId());
                 log.debug("Finished processing packet from {}", packet.getSocketAddress());
             } catch (IOException e) {
                 log.error("An I/O exception occurred", e);
