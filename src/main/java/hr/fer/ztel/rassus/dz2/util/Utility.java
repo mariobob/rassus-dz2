@@ -1,6 +1,8 @@
 package hr.fer.ztel.rassus.dz2.util;
 
 import java.io.IOException;
+import java.net.Socket;
+import java.net.SocketException;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -32,6 +34,22 @@ public class Utility {
             return n2;
         } else {
             return null;
+        }
+    }
+
+    /**
+     * Checks to see if a specific port is in use.
+     *
+     * @param port the port to check
+     */
+    public static boolean isPortInUse(String host, int port) throws IOException {
+        try {
+            new Socket(host, port).close();
+            // Successful connection means the port is taken.
+            return true;
+        } catch (SocketException e) {
+            // Could not connect.
+            return false;
         }
     }
 

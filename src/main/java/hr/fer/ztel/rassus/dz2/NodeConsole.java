@@ -1,6 +1,7 @@
 package hr.fer.ztel.rassus.dz2;
 
 import hr.fer.ztel.rassus.dz2.thread.Node;
+import hr.fer.ztel.rassus.dz2.util.Utility;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.BufferedReader;
@@ -35,6 +36,11 @@ public class NodeConsole {
         Node node = createNode(name);
         if (node == null) {
             log.error("Could not find node with name '{}'. Exiting...", name);
+            return;
+        }
+
+        if (Utility.isPortInUse("localhost", node.getPort())) {
+            log.error("Port {} is already in use.");
             return;
         }
 
