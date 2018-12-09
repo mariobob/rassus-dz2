@@ -24,7 +24,7 @@ public class EmulatedSystemClock {
     
     public long currentTimeMillis() {
         long current = System.currentTimeMillis();
-        long diff =current - startTime;
+        long diff = current - startTime;
         double coef = diff / 1000;
         return startTime + Math.round(diff * Math.pow((1+jitter), coef));
     }

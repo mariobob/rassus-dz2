@@ -5,10 +5,10 @@ import lombok.Value;
 @Value
 public class ScalarTimestamp implements Comparable<ScalarTimestamp> {
 
-    private final int value;
+    private final long value;
 
     @Override
     public int compareTo(ScalarTimestamp other) {
-        return Integer.compare(value, other.value);
+        return Long.compare(value, other.value);
     }
 }

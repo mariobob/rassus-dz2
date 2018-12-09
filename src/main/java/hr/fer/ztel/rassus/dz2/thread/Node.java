@@ -1,6 +1,8 @@
 package hr.fer.ztel.rassus.dz2.thread;
 
 import hr.fer.ztel.rassus.dz2.model.Measurement;
+import hr.fer.ztel.rassus.dz2.stupidudp.network.DecoratedEmulatedSystemClock;
+import hr.fer.ztel.rassus.dz2.stupidudp.network.EmulatedSystemClock;
 import hr.fer.ztel.rassus.dz2.timestamp.ScalarTimestamp;
 import hr.fer.ztel.rassus.dz2.timestamp.VectorTimestamp;
 import lombok.Getter;
@@ -24,13 +26,15 @@ public class Node {
     /** Interval between two sorts of measurements, in milliseconds. */
     private static final long SORT_INTERVAL_MILLIS = 5000;
 
-    @Getter private long startTime;
+    @Getter private long startTime = System.currentTimeMillis();
     @Getter private boolean started = false;
 
     @Getter private final String name;
     @Getter private final int port;
     @Getter private final int nodeIndex;
     @Getter private final int totalNodes;
+
+    @Getter private final DecoratedEmulatedSystemClock clock;
 
     @Getter private volatile VectorTimestamp lastVectorTimestamp;
     @Getter private volatile ScalarTimestamp lastScalarTimestamp;
@@ -50,8 +54,10 @@ public class Node {
         this.nodeIndex = nodeIndex;
         this.totalNodes = neighbourNodes.size() + 1;
 
+        this.clock = new DecoratedEmulatedSystemClock(new EmulatedSystemClock());
+
         this.lastVectorTimestamp = new VectorTimestamp(new int[totalNodes]);
-        this.lastScalarTimestamp = new ScalarTimestamp(0);
+        this.lastScalarTimestamp = new ScalarTimestamp(clock.currentTimeMillis());
 
         this.serverThread = new ServerThread(this, port, lossRate, averageDelay);
         this.clientThread = new ClientThread(this, lossRate, averageDelay, neighbourNodes);
@@ -98,13 +104,20 @@ public class Node {
     public synchronized void storeMeasurement(Measurement measurement, ScalarTimestamp scalar, VectorTimestamp vector) {
         recordEvent();
 
+        // Set the largest scalar timestamp as current
+        lastScalarTimestamp = new ScalarTimestamp(clock.currentTimeMillis());
+        if (scalar.getValue() > lastScalarTimestamp.getValue()) {
+            log.debug("Scalar value changed from {} to {}", lastScalarTimestamp.getValue(), scalar.getValue());
+            clock.setOffset(scalar.getValue() - lastScalarTimestamp.getValue());
+            lastScalarTimestamp = new ScalarTimestamp(clock.currentTimeMillis());
+        }
         // Set last vector timestamp and always force local event count value for current node
         lastVectorTimestamp = VectorTimestamp.combine(lastVectorTimestamp, vector, nodeIndex, getEventCount());
-        log.debug("Last vector timestamp: {}", lastVectorTimestamp);
 
         measurements.add(measurement);
-        scalarTimestampMap.put(scalar, measurement);
-        vectorTimestampMap.put(vector, measurement);
+        scalarTimestampMap.put(lastScalarTimestamp, measurement);
+//        scalarTimestampMap.put(new ScalarTimestamp((lastScalarTimestamp.getValue() - startTime) / 1000), measurement); // convert to seconds elapsed
+        vectorTimestampMap.put(lastVectorTimestamp, measurement);
     }
 
     private void recordEvent() {
