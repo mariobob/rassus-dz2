@@ -4,7 +4,6 @@ import hr.fer.ztel.rassus.dz2.model.Measurement;
 import hr.fer.ztel.rassus.dz2.timestamp.ScalarTimestamp;
 import hr.fer.ztel.rassus.dz2.timestamp.VectorTimestamp;
 import lombok.Getter;
-import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
 import java.net.SocketAddress;
@@ -20,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Log4j2
-@ToString
 public class Node {
 
     /** Interval between two sorts of measurements, in milliseconds. */
@@ -30,8 +28,12 @@ public class Node {
     @Getter private boolean started = false;
 
     @Getter private final String name;
+    @Getter private final int port;
     @Getter private final int nodeIndex;
     @Getter private final int totalNodes;
+
+    @Getter private volatile VectorTimestamp lastVectorTimestamp;
+    @Getter private volatile ScalarTimestamp lastScalarTimestamp;
 
     private final AtomicInteger eventCount = new AtomicInteger();
     private final List<Measurement> measurements = new CopyOnWriteArrayList<>();
@@ -44,8 +46,12 @@ public class Node {
 
     public Node(String name, int port, double lossRate, int averageDelay, int nodeIndex, List<SocketAddress> neighbourNodes) {
         this.name = name;
+        this.port = port;
         this.nodeIndex = nodeIndex;
         this.totalNodes = neighbourNodes.size() + 1;
+
+        this.lastVectorTimestamp = new VectorTimestamp(new int[totalNodes]);
+        this.lastScalarTimestamp = new ScalarTimestamp(0);
 
         this.serverThread = new ServerThread(this, port, lossRate, averageDelay);
         this.clientThread = new ClientThread(this, lossRate, averageDelay, neighbourNodes);
@@ -85,8 +91,17 @@ public class Node {
         return eventCount.get();
     }
 
+    public void storeMeasurement(Measurement measurement) {
+        storeMeasurement(measurement, lastScalarTimestamp, lastVectorTimestamp);
+    }
+
     public synchronized void storeMeasurement(Measurement measurement, ScalarTimestamp scalar, VectorTimestamp vector) {
         recordEvent();
+
+        // Set last vector timestamp and always force local event count value for current node
+        lastVectorTimestamp = VectorTimestamp.combine(lastVectorTimestamp, vector, nodeIndex, getEventCount());
+        log.debug("Last vector timestamp: {}", lastVectorTimestamp);
+
         measurements.add(measurement);
         scalarTimestampMap.put(scalar, measurement);
         vectorTimestampMap.put(vector, measurement);
@@ -109,8 +124,8 @@ public class Node {
                     .orElse(Double.NaN);
 
             // Sort measurements by timestamps and clear all global measurements
-            Map<ScalarTimestamp, Measurement> scalar = new TreeMap<>(scalarTimestampMap);
-            Map<VectorTimestamp, Measurement> vector = new TreeMap<>(vectorTimestampMap);
+            TreeMap<ScalarTimestamp, Measurement> scalar = new TreeMap<>(scalarTimestampMap);
+            TreeMap<VectorTimestamp, Measurement> vector = new TreeMap<>(vectorTimestampMap);
             synchronized (Node.this) {
                 scalarTimestampMap.clear();
                 vectorTimestampMap.clear();
@@ -119,8 +134,8 @@ public class Node {
 
             // Log required information
             log.info("Average CO measurement: {}", averageCO);
-            log.info("Measurements (scalar):  {}", scalar);
-            log.info("Measurements (vector):  {}", vector);
+            log.info("Measurements (scalar):  {}", scalar.descendingMap());
+            log.info("Measurements (vector):  {}", vector.descendingMap());
         }
     }
 }

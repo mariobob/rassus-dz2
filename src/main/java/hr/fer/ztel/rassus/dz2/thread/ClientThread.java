@@ -46,7 +46,7 @@ public class ClientThread extends Thread {
         this.lossRate = lossRate;
         this.averageDelay = averageDelay;
         this.neighbourNodes = neighbourNodes;
-        this.executorService = Executors.newFixedThreadPool(neighbourNodes.size());
+        this.executorService = Executors.newFixedThreadPool(3 * neighbourNodes.size());
     }
 
     @Override
@@ -72,10 +72,9 @@ public class ClientThread extends Thread {
         log.debug("Generated measurement: {}", measurement);
 
         // Store measurement locally
-        // TODO Set correct value to scalar and vector timestamps
-        ScalarTimestamp scalar = new ScalarTimestamp(0);
-        VectorTimestamp vector = new VectorTimestamp();
-        node.storeMeasurement(measurement, scalar, vector);
+        node.storeMeasurement(measurement);
+        ScalarTimestamp scalar = node.getLastScalarTimestamp();
+        VectorTimestamp vector = node.getLastVectorTimestamp();
 
         // Send to all other nodes in network
         for (SocketAddress nodeAddress : neighbourNodes) {
